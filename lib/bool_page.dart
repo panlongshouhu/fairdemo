@@ -19,8 +19,8 @@ class _State extends State<IfEqualBoolPage> {
   @FairProps()
   var fairProps;
 
-  String _title;
-  int _count;
+   String _title;
+   int _count;
 
   // JS生命周期方法--在JS加载完成自动调用
   void onLoad() {

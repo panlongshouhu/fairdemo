@@ -2,8 +2,13 @@ import 'dart:io';
 
 import 'package:demo0314/runtime/config/api.dart';
 import 'package:args/args.dart';
+import 'package:flutter/material.dart';
 class ClassMapping {
   static Future<dynamic> getClass(String className) async {
+    if(className.endsWith('Text')){
+      return Function.apply(() => Padding,[{'data':'nihao'}],null);
+    }
+
     var frameworkAPI = Api.frameworkAPI;
 
     var includedPaths = <String>[];

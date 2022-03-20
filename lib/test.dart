@@ -12,37 +12,13 @@ void main(List<String> arguments) {
   //   value = value as Widget;
   //   print(value.runtimeType);
   // });
-  // dynamic an = Function.apply('() => Animal',null);
+  dynamic an = Function.apply((String name) => Animal(name),['ddd']);
+  print(an.name);
+}
 
-  final parser = ArgParser()
-    ..addOption('file', abbr: 'f')
-    ..addOption('directory', abbr: 'd')
-    ..addOption('output-directory', abbr: 'o')
-    ..addOption('sdk-name', abbr: 's')
-    ..addOption('compile-kind',
-        abbr: 'k',
-        defaultsTo: 'bundle',
-        allowed: ['bundle', 'dart', 'flutter', 'sdk']);
-  var argResults = parser.parse(arguments);
-  var kind = argResults['compile-kind'];
-  if (kind == 'bundle') {
-    var file = argResults['file'];
-    if (file == null || !File(file).existsSync()) {
-      print('file is required, please pass as absolute path');
-    }
-
-  } else if (kind == 'dart') {
-    var dirString = argResults['directory'];
-    Directory dir;
-    if (dirString == null || !(dir = Directory(dirString)).existsSync()) {
-      print('directory is not valid, please pass as absolute path');
-    }
-  } else if (kind == 'flutter') {
-    var dir = argResults['directory'];
-    if (dir == null || !(Directory(dir)).existsSync()) {
-      print('directory is not valid, please pass as absolute path');
-    }
-  }
+class Animal {
+  String name;
+  Animal(this.name);
 }
 
 class Home extends StatefulWidget {

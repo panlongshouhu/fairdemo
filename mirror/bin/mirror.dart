@@ -182,9 +182,9 @@ class ClassMap {
   //   classMap = classMap.substring(0, classMap.length - 2);
   //   classMap += '\n]';
   //   await file1.writeAsString(classMap);
-  // } catch (e) {
-  //   print(e);
-  // }
+  } catch (e) {
+    print(e);
+  }
 
   // dynamic fff = Function.apply((String name,int age1) => Animal(name,age:age1), ['dd',22]);
   // print(fff.name);

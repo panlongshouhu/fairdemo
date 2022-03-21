@@ -17,12 +17,14 @@ void main(List<String> arguments) async {
     'dart:isolate',
     'dart:mirrors'
   ];
-  librarys.forEach((element) {
+
+  String classMapping = '''class ClassMap {\nstatic dynamic mapping(String name){\n
+              if(name.isEmpty)return;\n''';
+  librarys.forEach((element) async{
     try {
       element = element.replaceAll(':', '.');
       LibraryMirror libraryMirror =
           currentMirrorSystem().findLibrary(new Symbol(element));
-
 
       libraryMirror.declarations.forEach((key, value) async {
         var classOutMethod = {};
@@ -50,6 +52,10 @@ void main(List<String> arguments) async {
                     .newInstance(method.constructorName, positionalArgs)
                     .reflectee;
                 Mapping.map[name] = function;
+
+                  classMapping +='if(name.endWith(\'$name\'){\n';
+                  classMapping +='return ()=>$name();\n';
+                  classMapping +='}\n';
               }else{
                 String methodName = MirrorSystem.getName(key);
                 classOutMethod[methodName] = method;
@@ -87,8 +93,16 @@ void main(List<String> arguments) async {
           }
         }
       });
+
     } catch (e) {}
   });
+  classMapping += '}\n';
+  classMapping += '}';
+  File file = File('bin/class_mapping.dart');
+  if(!await file.existsSync()){
+    await file.create();
+  }
+  await file.writeAsString(classMapping);
   // String test = 'Utf8Codec';
   String test = 'File';
   var df = Uint8List(2);

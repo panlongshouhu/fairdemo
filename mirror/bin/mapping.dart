@@ -1,3 +1,3 @@
 class Mapping{
-  static Map<String,Function> map = Map();
+  static Map<String,dynamic> map = Map();
 }

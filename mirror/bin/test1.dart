@@ -1,5 +1,7 @@
+import 'dart:math';
 import 'dart:mirrors';
-import 'mapping.dart';
+import 'NumberParsing.dart';
+import 'sdk/fof_mapping.dart';
 
 void main(List<String> arguments) async {
   LibraryMirror libraryMirror =
@@ -14,7 +16,7 @@ void main(List<String> arguments) async {
           if (declaration is MethodMirror) method = declaration;
           if (method != null && method.isConstructor) {
             dynamic function = (List<dynamic> positionalArgs) =>value.newInstance(method.constructorName, positionalArgs,{Symbol('llowInvalid'):true}).reflectee;
-            Mapping.map[name] = function;
+            SeparateMapFof.maps[name] = function;
           }
         });
       }
@@ -25,11 +27,13 @@ void main(List<String> arguments) async {
   String test = 'Latin1Codec';
   // String test = 'AsciiCodec';
   // String test = 'JsonUnsupportedObjectError';
-  dynamic fun = Function.apply(Mapping.map[test], [[]]);
+  dynamic fun = Function.apply(SeparateMapFof.maps[test], [[]]);
   print(fun.toString());
   // dynamic fff = Function.apply((String name,int age1) => Animal(name,age:age1), ['dd',22]);
   // print(fff.name);
   // print(fff.age);
+  Random random = Random();
+  print(random.parseInt1()); // Use an extension method.
 }
 
 class Animal {
@@ -37,3 +41,5 @@ class Animal {
   int age = 324;
   Animal(this.name, {this.age});
 }
+
+

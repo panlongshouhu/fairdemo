@@ -1,9 +1,6 @@
-import 'dart:async';
 import 'dart:io';
 import 'dart:mirrors';
-import 'dart:typed_data';
-import 'mapping.dart';
-
+RegExp mobile = new RegExp(r"[0-9A-Za-z]");
 void main(List<String> arguments) async {
   var librarys = [
     'dart:async',
@@ -23,179 +20,305 @@ void main(List<String> arguments) async {
     librarysString += 'import \'$element\'\;\n';
   });
 
-  Map classMaps = {};
-  String classMapping = '''
+  var separateMaps = {};
+  String separateMapping = '''
 $librarysString
-class ClassMap {
-  static Map maps = {\n''';
+import \'sdk/fof_system.dart\';
+class FofMapping {
+   static Map maps = {\n''';
+
+  var wxAllMaps = {};
+  String wxAll = '''
+library wx.system;\n''';
+
+  var num = 0;
   try {
     //循环类库
-    librarys.forEach((element) async {
-      element = element.replaceAll(':', '.');
+    librarys.forEach((element) {
+      var elementReplace = element.replaceAll(':', '.');
 
       LibraryMirror libraryMirror =
-          currentMirrorSystem().findLibrary(new Symbol(element));
+          currentMirrorSystem().findLibrary(new Symbol(elementReplace));
 
       libraryMirror.declarations.forEach((key, value) async {
         var classOutMethod = {};
         if (value is ClassMirror) {
           // if (value.isAbstract) return;
           String name = MirrorSystem.getName(key);
-          if (!name.startsWith('_')) {
-            value.declarations.forEach((key, declaration) async {
+          if (name.startsWith('_'))return;
+          Map classInsMaps = {};
+          try {
+            var classInstanceMaps = {};
+
+            Map separateInsMaps = {};
+            String separateInsMap =
+            '''$librarysString
+Map ${name}Map = {\n''';
+
+            num++;
+            value.declarations.forEach((key, declaration) {
+
               MethodMirror method;
               if (declaration is MethodMirror) method = declaration;
               if (method == null) return;
               if (method.isConstructor) {
                 //工厂构造
                 var factoryName = '';
+                var factoryAllName = '';
                 if (method.isFactoryConstructor) {
                   factoryName = MirrorSystem.getName(method.constructorName);
                   if (factoryName.isNotEmpty) {
-                    factoryName = '$name.$factoryName';
+                    factoryAllName = '$name.$factoryName';
                   } else {
+                    factoryAllName = name;
                     factoryName = name;
                   }
-                } else {
+                } else if(value.isAbstract){
+                  return;
+                }else{
+                  factoryAllName = name;
                   factoryName = name;
                 }
                 String paramsType = '';
                 String paramsString = '';
+                bool isAnomaly = false;
                 method.parameters.forEach((element) {
                   // print('element:${name1}')
                   if (element.isOptional) {
                   } else {
-                    // String name1 = MirrorSystem.getName(element.simpleName);
-                    // String nameType =
-                    //     MirrorSystem.getName(element.type.simpleName);
-                    // if (name1.startsWith('_')) {
-                    //   paramsString = '';
-                    //   paramsType = '';
-                    //   return;
-                    // }
-                    // paramsType += '${nameType} ${name1},';
-                    // paramsString += '${name1},';
-                    // isNoparameter = true;
-                    // mustArgs.add(element.defaultValue);
+                    String name1 = MirrorSystem.getName(element.simpleName);
+                    String nameType =
+                        MirrorSystem.getName(element.type.simpleName);
+                    // print(nameType);
+                    if (name1.startsWith('_') ||
+                        nameType=='T' ||
+                        nameType == 'E' ||
+                    nameType.contains('->')) {
+                      paramsString = '';
+                      paramsType = '';
+                      isAnomaly = true;
+                      return;
+                    }
+                    paramsType += '${nameType} ${name1},';
+                    paramsString += '${name1},';
                   }
                 });
-                // if (paramsString.length > 1 && paramsString.endsWith(','))
-                //   paramsString =
-                //       paramsString.substring(0, paramsString.length - 1);
-                //
-                // if (paramsType.length > 1 && paramsType.endsWith(','))
-                //   paramsType = paramsType.substring(0, paramsType.length - 1);
-                // classMapping += 'if(name == \'$name\'){\n';
-                // if (paramsString.isNotEmpty && paramsType.isNotEmpty) {
-                //
-                //   classMapping +=
-                //   'return ($paramsType)=>$factoryName($paramsString);\n';
-                //
-                // }else{
-                //   classMapping +=
-                //   'return ()=>$factoryName();\n';
-                //
-                // }
-                // classMapping += '}\n';
-                // classMapping += '\'$name\':$name,\n';
-                classMaps['$name'] = '$name';
-                dynamic function = (List<dynamic> positionalArgs) => value
-                    .newInstance(method.constructorName, positionalArgs)
-                    .reflectee;
-                Mapping.map[name] = function;
-              } else {
-                String methodName = MirrorSystem.getName(key);
-                classOutMethod[methodName] = method;
+                if (paramsString.length > 1 && paramsString.endsWith(','))
+                  paramsString =
+                      paramsString.substring(0, paramsString.length - 1);
+
+                if (paramsType.length > 1 && paramsType.endsWith(','))
+                  paramsType = paramsType.substring(0, paramsType.length - 1);
+                // if(i==0)
+
+                separateMaps['$name'] = '${name}Map';
+                wxAllMaps['$name'] = '${name}Fof.dart';
+
+                if(isAnomaly)return;
+                if (paramsString.isNotEmpty && paramsType.isNotEmpty) {
+                  classInsMaps['$factoryName']= '($paramsType)=>$factoryAllName($paramsString)';
+                  classInstanceMaps[factoryName] = '($paramsType)=>$factoryAllName($paramsString)';
+                  if(mobile.hasMatch(factoryName))
+                  separateInsMaps[factoryName] = '($paramsType)=>$factoryAllName($paramsString)';
+                }else{
+                  classInsMaps['$factoryName'] = '()=>$factoryAllName()';
+                  classInstanceMaps[factoryName] = '()=>$factoryAllName()';
+                  if(mobile.hasMatch(factoryName))
+                  separateInsMaps[factoryName] = '()=>$factoryAllName()';
+                  // classMap +='return Function.apply(()=>$factoryAllName(), positionalArguments);\n';
+                }
+              }else if(method.isStatic){
+                //静态方法
+                var staticName = MirrorSystem.getName(method.simpleName);
+
+                String paramsType = '';
+                String paramsString = '';
+                bool isAnomaly = false;
+                method.parameters.forEach((element) {
+                  // print('element:${name1}')
+                  if (element.isOptional) {
+                  } else {
+                    String name1 = MirrorSystem.getName(element.simpleName);
+                    String nameType = MirrorSystem.getName(element.type.simpleName);
+                    if (name1.startsWith('_') ||
+                        nameType=='T' ||
+                        nameType == 'E' ||
+                        nameType.contains('->')) {
+                      paramsString = '';
+                      paramsType = '';
+                      isAnomaly = true;
+                      return;
+                    }
+                    paramsType += '${nameType} ${name1},';
+                    paramsString += '${name1},';
+                  }
+                });
+                if (paramsString.length > 1 && paramsString.endsWith(','))
+                  paramsString =
+                      paramsString.substring(0, paramsString.length - 1);
+
+                if (paramsType.length > 1 && paramsType.endsWith(','))
+                  paramsType = paramsType.substring(0, paramsType.length - 1);
+
+                if(isAnomaly)return;
+                if (paramsString.isNotEmpty && paramsType.isNotEmpty) {
+                  classInsMaps[staticName] = '($paramsType)=>$name.$staticName($paramsString)';
+                  classInstanceMaps[staticName] = '($paramsType)=>$name.$staticName($paramsString)';
+                  if(mobile.hasMatch(staticName))
+                  separateInsMaps[staticName] = '($paramsType)=>$name.$staticName($paramsString)';
+                }else{
+                  if(method.isSynthetic || method.isGetter){
+                    classInsMaps[staticName] = '()=>$name.$staticName';
+                    classInstanceMaps[staticName] = '()=>$name.$staticName';
+                    if(mobile.hasMatch(staticName))
+                    separateInsMaps[staticName] = '()=>$name.$staticName';
+                  }else {
+                    classInsMaps[staticName] = '()=>$name.$staticName()';
+                    classInstanceMaps[staticName] = '()=>$name.$staticName()';
+                    if(mobile.hasMatch(staticName))
+                    separateInsMaps[staticName] = '()=>$name.$staticName()';
+                  }
+                }
+              } else if(method.isRegularMethod){
+                //实体方法
+                // String methodName = MirrorSystem.getName(key);
+                // classOutMethod[methodName] = method;
+
+                var staticName = MirrorSystem.getName(method.simpleName);
+
+                String paramsType = '';
+                String paramsString = '';
+                bool isAnomaly = false;
+                method.parameters.forEach((element) {
+                  // print('element:${name1}')
+                  if (!element.isOptional) {
+                    String name1 = MirrorSystem.getName(element.simpleName);
+                    String nameType = MirrorSystem.getName(element.type.simpleName);
+                    if (name1.startsWith('_' ) ||
+                        nameType=='T' ||
+                        nameType == 'E' ||
+                        nameType.contains('->')) {
+                      paramsString = '';
+                      paramsType = '';
+                      isAnomaly = true;
+                      return;
+                    }
+                    paramsType += '${nameType} ${name1},';
+                    paramsString += '${name1},';
+                  }
+                });
+                if (paramsString.length > 1 && paramsString.endsWith(','))
+                  paramsString =
+                      paramsString.substring(0, paramsString.length - 1);
+
+                if (paramsType.length > 1 && paramsType.endsWith(','))
+                  paramsType = paramsType.substring(0, paramsType.length - 1);
+
+                if(isAnomaly)return;
+                if (paramsString.isNotEmpty && paramsType.isNotEmpty) {
+                  classInsMaps[staticName] = '(${name} ${name.toLowerCase()},$paramsType)=>${name.toLowerCase()}.$staticName($paramsString)';
+                  classInstanceMaps[staticName] = '(${name} ${name.toLowerCase()},$paramsType)=>${name.toLowerCase()}.$staticName($paramsString)';
+                  if(mobile.hasMatch(staticName))
+                  separateInsMaps[staticName] = '(${name} ${name.toLowerCase()},$paramsType)=>${name.toLowerCase()}.$staticName($paramsString)';
+                }else{
+                  if(method.isSynthetic){
+                    classInsMaps[staticName] = '(${name} ${name.toLowerCase()})=>${name.toLowerCase()}.$staticName';
+                    classInstanceMaps[staticName] = '(${name} ${name.toLowerCase()})=>${name.toLowerCase()}.$staticName';
+                    if(mobile.hasMatch(staticName))
+                    separateInsMaps[staticName] = '(${name} ${name.toLowerCase()})=>${name.toLowerCase()}.$staticName';
+                  }else {
+                    classInsMaps[staticName] ='(${name} ${name.toLowerCase()})=>${name.toLowerCase()}.$staticName()';
+                    classInstanceMaps[staticName] = '(${name} ${name.toLowerCase()})=>${name.toLowerCase()}.$staticName()';
+                    if(mobile.hasMatch(staticName))
+                    separateInsMaps[staticName] = '(${name} ${name.toLowerCase()})=>${name.toLowerCase()}.$staticName()';
+                  }
+                }
               }
             });
 
-            //方法输出
-            try {
-              var ff = Directory('bin/bean');
-              if (!ff.existsSync()) {
-                await ff.create();
-              } else {
-                await ff.delete(recursive: true);
-                await ff.create();
-              }
-              //实际类的创建
-              File file = File('bin/bean/${name}Ex.dart');
-              if (!await file.existsSync()) {
-                await file.create();
-              }
-              String classMap =
-                  '''extension ${name}Ex on $name {\n
-                  static dynamic invoke(String name,[dynamic params]){
-              if(name.isEmpty)return;\n''';
-              classOutMethod.forEach((key, value) async {
-                // var value1 = MirrorSystem.getName(key);
-                classMap += 'if(name.endsWith(\'$key\')){\n';
-                var valueString = value
-                    .toString()
-                    .replaceAll('MethodMirror on ', '')
-                    .replaceAll('\'', '');
-                classMap += 'return ${valueString}();';
-                classMap += '\n}\n';
-              });
-              classMap += 'return null;\n';
-              classMap += '}\n';
-              classMap += '}';
-              await file.writeAsString(classMap);
+            //创建类Mapping的映射
+            String tempMap = '';
+            await separateInsMaps.forEach((key, value){
+              tempMap += '\'$key\':$value,\n';
+            });
+            separateInsMap += tempMap;
+            separateInsMap += '};';
+            // var fff = Directory('bin/separate');
+            // if (!fff.existsSync()) {
+            //   await fff.create();
+            // } else {
+            //   await fff.delete(recursive: true);
+            //   await fff.create();
+            // }
+            separateFile(name,separateInsMap);
             } catch (e) {}
-          }
         }
       });
     });
 
-    String temp = '';
-    await classMaps.forEach((key, value) {
-      temp += '\'$key\':$value,\n';
+    //创建类maping的映射
+    String tempSe = '';
+    await separateMaps.forEach((key, value){
+      tempSe += '\'$key\':$value,\n';
+    });
+    // temp = temp.substring(0,classMapping.length-2);
+    separateMapping += tempSe;
+    separateMapping += '};\n';
+    separateMapping += '}';
+
+    separateAll(separateMapping);
+
+
+    String tempWx = '';
+    await wxAllMaps.forEach((key, value){
+      tempWx += 'export \'$value\';\n';
     });
 
-    // temp = temp.substring(0,classMapping.length-2);
-    classMapping += temp;
-    classMapping += '};\n';
-    classMapping += '}';
-    //创建类的映射
-    File file = File('bin/class_mapping.dart');
-    if (!await file.existsSync()) {
-      await file.create();
-    }
-    await file.writeAsString(classMapping);
-    // String test = 'Utf8Codec';
-    // String test = 'File';
-    // var df = Uint8List(2);
-    // String test = 'ZLibCodec';
-    // String test = 'JsonUnsupportedObjectError';
-    // dynamic fun = Function.apply(Mapping.map[test], [
-    //   [df]
-    // ]);
-    // print(fun.toString());
-    //实际类的创建
-  //   File file1 = File('bin/map.json');
-  //
-  //   String classMap = '[\n';
-  //   Mapping.map.forEach((key, value) {
-  //     String valueString = value.toString().replaceAll("Closure: ", "");
-  //     classMap += '{\n\"key\":\"$key\",\n\"value\":\"$valueString\"\n},\n';
-  //   });
-  //   classMap = classMap.substring(0, classMap.length - 2);
-  //   classMap += '\n]';
-  //   await file1.writeAsString(classMap);
+    wxAll += tempWx;
+
+    wxAllFile(wxAll);
+
+    print('-----------${num}');
   } catch (e) {
     print(e);
   }
 
-  // dynamic fff = Function.apply((String name,int age1) => Animal(name,age:age1), ['dd',22]);
-  // print(fff.name);
-  // print(fff.age);
+}
+separateFile(String name,String separateInsMap) async{
+  //实际类映射的创建
+  File fileMap = File('bin/sdk/${name}Fof.dart');
+  // classBeanMaps['$name'] = '${name}Fof';
+  if (await !fileMap.existsSync()) {
+    await fileMap.create();
+  } else {
+    await fileMap.delete(recursive: true);
+    await fileMap.create();
+  }
+  await fileMap.writeAsString(separateInsMap);
 }
 
-// class Animal {
-//   String name = '2332';
-//   int age = 324;
-//
-//   Animal(this.name, {this.age});
-//
-//   void dfd({int qqq}) {}
-// }
+wxAllFile(String separateInsMap) async{
+  //实际类映射的创建
+  File fileMap = File('bin/sdk/fof_system.dart');
+  // classBeanMaps['$name'] = '${name}Fof';
+  if (await !fileMap.existsSync()) {
+    await fileMap.create();
+  } else {
+    await fileMap.delete(recursive: true);
+    await fileMap.create();
+  }
+  await fileMap.writeAsString(separateInsMap);
+}
+
+
+separateAll(String separateMapping) async{
+  File fileSe = File('bin/sdk/fof_mapping.dart');
+  if (!await fileSe.existsSync()) {
+  await fileSe.create();
+  } else {
+  await fileSe.delete(recursive: true);
+  await fileSe.create();
+  }
+  await fileSe.writeAsString(separateMapping);
+
+}
